@@ -21,6 +21,11 @@ class BlockChainTest(unittest.TestCase):
         self.assertEqual(reward.to, 'my-address', 'wrong reward - to')
         self.assertEqual(reward.amount, 1, 'wrong reward - amount')
 
+    def test_mine_first_block(self):
+        blockchain = BlockChain(address='my-address')
+        blockchain.add_transaction(new_transactions=[])
+        print(blockchain)
+
 
 if __name__ == '__main__':
     unittest.main()

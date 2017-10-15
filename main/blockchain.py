@@ -1,5 +1,9 @@
 from main.block import Block
 from datetime import datetime
+from time import time
+import Crypto.PublicKey.RSA as RSA
+import base64
+from os import urandom as random
 
 from main.exceptions.blockchain import PayerNotRegisteredException, InsufficientFundsException, \
     PayeeNotRegisteredException
@@ -16,20 +20,26 @@ class BlockChain:
         first_data = {'pow': first_proof, 'transactions': [], 'state': self.state}
         self.chain = [Block(0, datetime.now(), first_data, "0")]
         self.address = address
+        self.keypair = RSA.generate(bits=1024, randfunc=random)
 
     def register_blockchain(self):
-        self.state.add_user(self.address, None)
+        self.state.add_user(self.address, self.keypair.publickey())
 
     def check_chain_through_consensus(self):
         # single node for now - consensus not implemented
         self.chain = self.chain
 
-    def broadcast(self):
+    @staticmethod
+    def broadcast():
         # single node for now - no broadcast needed
         print('dummy broadcasting')
 
     def miner_reward(self):
-        return Transaction(frm='network', to=self.address, amount=1)
+        transaction = Transaction(frm='network', to=self.address, amount=1)
+        encoded_transaction = base64.b64encode(transaction.dumps().encode('utf-8'))
+        signature = self.keypair.sign(M=encoded_transaction, K=int(time()))
+        transaction.signature = signature
+        return transaction
 
     def update_state(self, transaction):
         users = self.state.users
@@ -48,15 +58,20 @@ class BlockChain:
         payer.balance -= transaction.amount
         payee.balance += transaction.amount
 
+    @staticmethod
+    def mine(last_pow):
+        return do_proof(last_pow)
 
-    def add_transaction(self, new_transaction):
+    def add_transaction(self, new_transactions):
         self.check_chain_through_consensus()
         last_block = self.chain[-1]
         last_pow = last_block.data['pow']
-        new_pow = do_proof(last_pow)
-        transactions = last_block.data['transactions']
-        transactions.append(new_transaction) # the new transaction
-        transactions.append(self.miner_reward()) # reward for mining
+        new_pow = self.mine(last_pow)
+        transactions = last_block.data['transactions'][:]
+        for new_transaction in new_transactions:
+            self.update_state(new_transaction)
+            transactions.append(new_transaction)  # the new transaction
+        transactions.append(self.miner_reward())  # reward for mining
         new_data = {'pow': new_pow, 'transactions': transactions}
         new_block = Block(index=last_block.index+1, ts=datetime.now(), data=new_data, previous_hash=last_block.hash)
         self.chain.append(new_block)

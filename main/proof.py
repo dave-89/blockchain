@@ -5,7 +5,7 @@ sha = hashlib.sha512
 
 
 def is_good(test):
-    hashed = sha(test).hexdigest()
+    hashed = sha(test.encode('utf-8')).hexdigest()
     if hashed[:4] == "0000":
         return True
     else:
@@ -14,7 +14,7 @@ def is_good(test):
 
 def do_proof(previous_step):
     found = False
-    step = previous_step + 1
+    step = int(previous_step[len(seed):]) + 1
     while found is False:
         test_proof = seed + str(step)
         found = is_good(test_proof)
